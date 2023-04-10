@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useState, FormEvent, useContext, useRef} from "react";
+import React, {useState, FormEvent, useContext, useRef, useEffect} from "react";
 import axios from "axios";
 import { AppContext } from "@/app/context/IsSpeakingContext";
 import TextareaAutosize from 'react-textarea-autosize';
@@ -35,6 +35,13 @@ export default function TextToSpeech(){
         };
     }
 
+    useEffect(() => {
+        if(isAnswered) {
+            const distanceToTop = 800 - parseInt(myTextArea.current?.style.height!, 10) + 40 + 8 + 2; //padding-bottom do textarea = 8, height do input = 40 (24 + padding geral 8), borda geral da textarea = 1
+            setTextAreaHeight(distanceToTop);
+        }
+    }, [isAnswered]);
+
     async function handleUserText(event:FormEvent<HTMLFormElement>){
         event.preventDefault();
         setIsAnswered(false);
@@ -47,15 +54,7 @@ export default function TextToSpeech(){
             const fullAnswer = "P: " + userText + "\n\n" + "R: " + message;
             
             setAnswer(fullAnswer);
-            
-            const height = 800 - Math.max(parseInt(myTextArea.current?.style.height!, 10), myTextArea.current?.scrollHeight!) - 24; //padding top=16, padding bottom=8
-            
-            console.log(parseInt(myTextArea.current?.style.height!, 10));
-            
-            console.log(height);
-            
-            setTextAreaHeight(height);
-            setIsAnswered(true);
+            setIsAnswered(true); 
 
             speak(message);
         } catch (error) {

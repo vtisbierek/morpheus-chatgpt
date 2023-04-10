@@ -36,8 +36,8 @@ function Head(){
     const animation = useAnimations(model.animations, model.scene);
     const action = animation.actions.Animation;
 
-    console.log(model);
-    console.log(action);
+    //console.log(model);
+    //console.log(action);
 
     useEffect(() => {
         if(isSpeaking){
