@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useState, FormEvent, useContext} from "react";
+import React, {useState, FormEvent, useContext, useRef} from "react";
 import axios from "axios";
 import { AppContext } from "@/app/context/IsSpeakingContext";
 import TextareaAutosize from 'react-textarea-autosize';
@@ -10,6 +10,10 @@ export default function TextToSpeech(){
     const [isLoading, setIsLoading] = useState(false);
     const {isSpeaking, setIsSpeaking} = useContext(AppContext);
     const [answer, setAnswer] = useState("");
+    const [isAnswered, setIsAnswered] = useState(false);
+    const [textAreaHeight, setTextAreaHeight] = useState(800);
+
+    const myTextArea = useRef<HTMLTextAreaElement>(null);
 
     const synth = typeof window !== "undefined" ? window.speechSynthesis : null; //se estiver no lado do servidor, n existe window, então synth assume null, se estiver no lado do cliente, aí existe janela, e ele inicializa como window.speechSynthesis
     const voices = synth?.getVoices(); //o ponto de interrogação é pra dizer que é opcional, pois pode acontecer de synth ter recebido null
@@ -33,6 +37,7 @@ export default function TextToSpeech(){
 
     async function handleUserText(event:FormEvent<HTMLFormElement>){
         event.preventDefault();
+        setIsAnswered(false);
         setIsLoading(true); //durante essa comunicação com a API, quero desabilitar o botão pro usuário não poder spammar e gerar um monte de requisições simultâneas
         try {
             const response = await axios.post("http://localhost:3000/api/openai", {
@@ -40,8 +45,18 @@ export default function TextToSpeech(){
             });
             const {message} = response.data;
             const fullAnswer = "P: " + userText + "\n\n" + "R: " + message;
+            
             setAnswer(fullAnswer);
-            console.log(message);
+            
+            const height = 800 - Math.max(parseInt(myTextArea.current?.style.height!, 10), myTextArea.current?.scrollHeight!) - 24; //padding top=16, padding bottom=8
+            
+            console.log(parseInt(myTextArea.current?.style.height!, 10));
+            
+            console.log(height);
+            
+            setTextAreaHeight(height);
+            setIsAnswered(true);
+
             speak(message);
         } catch (error) {
             if(error instanceof Error){ //se o error que for recebido no catch for realmente uma instância do objeto de erro padrão Error, aí sim o typescript me deixa passar a propriedade error.message pra minha variável, se eu tentar passar ela direto sem verificar nesse if antes, o typescript não vai deixar passar pq ele n tem certeza se o error recebido no catch é mesmo um objeto Error, e se não fosse a propriedade error.message não existiria
@@ -74,10 +89,12 @@ export default function TextToSpeech(){
                 </button>
             </form>
             <TextareaAutosize
+                ref={myTextArea}
                 value={answer}
                 minRows={1}
                 disabled
-                className={"absolute top-[800px] right-[30px] space-x-2 pt-2 bg-transparent w-[510px] border border-[#b00c3f]/80 outline-none rounded-lg resize-none p-2 text-[#b00c3f]"}
+                className={"absolute top-[800px] right-[30px] space-x-2 bg-transparent w-[510px] border border-[#b00c3f]/80 outline-none rounded-lg resize-none p-2 pt-4 text-[#b00c3f]"}
+                style={{top: `${textAreaHeight}px`, visibility: isAnswered ? "visible" : "hidden"}}
             />
         </div>
     );
