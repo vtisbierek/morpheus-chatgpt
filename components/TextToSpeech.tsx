@@ -46,8 +46,9 @@ export default function TextToSpeech(){
         event.preventDefault();
         setIsAnswered(false);
         setIsLoading(true); //durante essa comunicação com a API, quero desabilitar o botão pro usuário não poder spammar e gerar um monte de requisições simultâneas
+        const endpointUri = process.env.NEXT_PUBLIC_SERVER_URI + "/api/openai";
         try {
-            const response = await axios.post("http://localhost:3000/api/openai", {
+            const response = await axios.post(endpointUri, {
                 userText: userText
             });
             const {message} = response.data;
