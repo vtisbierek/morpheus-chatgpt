@@ -1,7 +1,6 @@
 "use client";
 
 import React, {useState, FormEvent, useContext, useRef, useEffect} from "react";
-import axios from "axios";
 import { AppContext } from "@/app/context/IsSpeakingContext";
 import TextareaAutosize from 'react-textarea-autosize';
 
@@ -10,8 +9,10 @@ export default function TextToSpeech(){
     const [isLoading, setIsLoading] = useState(false);
     const {isSpeaking, setIsSpeaking} = useContext(AppContext);
     const [answer, setAnswer] = useState("");
+    const [ongoingAnswer, setOngoingAnswer] = useState("");
     const [isAnswered, setIsAnswered] = useState(false);
     const [textAreaHeight, setTextAreaHeight] = useState(800);
+    const [isDoneReading, setIsDoneReading] = useState(false);
 
     const myTextArea = useRef<HTMLTextAreaElement>(null);
 
@@ -42,22 +43,60 @@ export default function TextToSpeech(){
         }
     }, [isAnswered]);
 
+    useEffect(() => {
+        if(isDoneReading) {
+            const fullAnswer = "P: " + userText + "\n\n" + "R: " + ongoingAnswer;
+            
+            setAnswer(fullAnswer);
+        }
+    }, [isDoneReading]);
+
     async function handleUserText(event:FormEvent<HTMLFormElement>){
         event.preventDefault();
+        setOngoingAnswer("");
+        setAnswer("");
         setIsAnswered(false);
+        setIsDoneReading(false);
         setIsLoading(true); //durante essa comunicação com a API, quero desabilitar o botão pro usuário não poder spammar e gerar um monte de requisições simultâneas
         const endpointUri = process.env.NEXT_PUBLIC_SERVER_URI + "/api/openai";
         try {
-            const response = await axios.post(endpointUri, {
-                userText: userText
+            const response = await fetch("/api/openai", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  prompt: userText,
+                }),
             });
-            const {message} = response.data;
-            const fullAnswer = "P: " + userText + "\n\n" + "R: " + message;
-            
-            setAnswer(fullAnswer);
-            setIsAnswered(true); 
+          
+            if (!response.ok) {
+            throw new Error(response.statusText);
+            }
+          
+            const data = response.body;
+            if (!data) {
+            return;
+            }
 
-            speak(message);
+            const reader = data.getReader();
+            const decoder = new TextDecoder();
+
+            let done = false;
+
+            while (!done) {
+                const { value, done: doneReading } = await reader.read();
+                done = doneReading;
+                const chunkValue = decoder.decode(value);
+                setOngoingAnswer((prev) => prev + chunkValue);
+            }
+
+            setIsDoneReading(true);
+
+            console.log(answer);
+            
+            setIsAnswered(true); 
+            speak(ongoingAnswer);
         } catch (error) {
             if(error instanceof Error){ //se o error que for recebido no catch for realmente uma instância do objeto de erro padrão Error, aí sim o typescript me deixa passar a propriedade error.message pra minha variável, se eu tentar passar ela direto sem verificar nesse if antes, o typescript não vai deixar passar pq ele n tem certeza se o error recebido no catch é mesmo um objeto Error, e se não fosse a propriedade error.message não existiria
                 console.log(error.message);
